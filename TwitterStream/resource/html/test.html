@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <script
+      src="https://maps.googleapis.com/maps/api/js?v=3.exp&libraries=visualization&key=AIzaSyC5ae35RYcgj5B-ru8I3huOIAws6NnAHQs">
+    </script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
+    <!-- Latest compiled and minified CSS -->
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css">
+
+<!-- Optional theme -->
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap-theme.min.css">
+
+<script src="../js/jqcloud-1.0.4.js"></script>
+
+<link rel="stylesheet" href="../css/jqcloud.css">
+<!-- Latest compiled and minified JavaScript -->
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>
+<style type="text/css">
+      
+    #map { height: 600px; margin-left: auto;  
+    margin-right: auto; padding: 30px;top:30px;}
+    #topic { height: 400px; margin-left: auto;  
+    margin-right: auto; padding: 30px;top:30px;}
+    </style>
+    
+  </head>
+  <body>
+    <div class="container">
+
+      <!-- Static navbar -->
+      <nav class="navbar navbar-default">
+        <div class="container-fluid">
+          <div class="navbar-header">
+            <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar">
+              <span class="sr-only">Toggle navigation</span>
+              <span class="icon-bar"></span>
+              <span class="icon-bar"></span>
+              <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="#">Project name</a>
+          </div>
+          <div id="navbar" class="navbar-collapse collapse">
+            <ul class="nav navbar-nav">
+              <li class="active" id='newpoints'><a href="#">Newest Tweets</a></li>
+              <li id='heatmap'><a href="#">Distribution Heatmap</a></li>
+              <li id='toptopic'><a href="#">Top Topics</a></li>
+              <li id='sentiments'><a href="#">Sentiments</a></li>
+            </ul>
+            <ul class="nav navbar-nav navbar-right">
+              <li class="active"><a>Default</a></li>
+              <li><a>Static top</a></li>
+              <li><a>Fixed top</a></li>
+            </ul>
+          </div><!--/.nav-collapse -->
+        </div><!--/.container-fluid -->
+      </nav>
+
+      <!-- Main component for a primary marketing message or call to action -->
+      <div class="jumbotron">
+        <div class="btn-group" role="group" style="left:20px;" id="buttons">
+          <button type="button" class="btn btn-default" onclick="setHeatmap('food')">Food</button>
+          <button type="button" class="btn btn-default" onclick="setHeatmap('music')">Music</button>
+          <button type="button" class="btn btn-default" onclick="setHeatmap('movie')">Movie</button>
+          <button type="button" class="btn btn-default" onclick="setHeatmap('book')">Book</button>
+          <button type="button" class="btn btn-default" onclick="setHeatmap('game')">Game</button>
+          <button type="button" class="btn btn-default" onclick="setHeatmap('sports')">Sports</button>
+          <button type="button" class="btn btn-default" onclick="setHeatmap('all')">All</button>
+      </div>
+      <div class="container">
+        <div id="map"></div>
+        <div id="topic"></div>
+        <div id="sentiment">
+          <ul class="list-group" id="senlist">
+          </ul>
+        </div>
+      </div>
+      </div>
+    </div>
+
+
+<script type="text/javascript">
+var map;
+var status = 0;
+var newpointlist = [];
+var sentimentlist = [];
+var heatmapfilter = '';
+var heatmap;
+
+var dbefore = new Date();
+var dnow = new Date();
+
+
+initMap();
+timedCount();
+sentimentCount();
+//getTopTopics();
+
+$("#buttons").hide();
+$("#topic").hide();
+$("#sentiment").hide();
+
+function initMap() {
+  map = new google.maps.Map(document.getElementById('map'), {
+    center: {lat: 40.7127, lng: -74.0059},
+    zoom: 2
+  });
+}
+
+function timedCount()
+{
+  dnow = new Date();
+  getNewPoints();
+  t=setTimeout("timedCount()",3000);//setInterval
+  dbefore = dnow;
+}
+
+function sentimentCount()
+{
+  getSentiments();
+  t=setTimeout("sentimentCount()",3000);//setInterval
+}
+
+function stopCount()
+{
+  clearTimeout(t);
+}
+
+$( "#newpoints" ).click(function() {
+  $( "#newpoints" ).attr('class', 'active');
+  $( "#heatmap" ).attr('class', '');
+  $( "#toptopic" ).attr('class', '');
+  $( "#sentiments" ).attr('class', '');
+  if(status != 0)
+  {
+    status = 0;
+    $("#buttons").hide();
+    $("#map").show();
+    $("#topic").hide();
+    $("#sentiment").hide();
+    map = new google.maps.Map(document.getElementById('map'), {
+      center: {lat: 40.7127, lng: -74.0059},
+      zoom: 2
+    });
+    DrawOldPoints(newpointlist);
+  }
+});
+
+$( "#heatmap" ).click(function() {
+  $( "#newpoints" ).attr('class', '');
+  $( "#heatmap" ).attr('class', 'active');
+  $( "#toptopic" ).attr('class', '');
+  $( "#sentiments" ).attr('class', '');
+  if(status != 1)
+  {
+    status = 1;
+    $("#buttons").show();
+    $("#map").show();
+    $("#topic").hide();
+    $("#sentiment").hide();
+    heatmapfilter = 'food';
+    map = new google.maps.Map(document.getElementById('map'), {
+      center: {lat: 40.7127, lng: -74.0059},
+      zoom: 2
+    });
+    getHeatMapPoints('food');
+  }
+});
+
+$( "#toptopic" ).click(function() {
+  $( "#newpoints" ).attr('class', '');
+  $( "#heatmap" ).attr('class', '');
+  $( "#toptopic" ).attr('class', 'active');
+  $( "#sentiments" ).attr('class', '');
+  if(status != 2)
+  {
+    $("#buttons").hide();
+    $("#map").hide();
+    $("#topic").show();
+    $("#sentiment").hide();
+    status = 2;
+    getTopTopics();
+  }
+});
+
+$( "#sentiments" ).click(function() {
+  $( "#newpoints" ).attr('class', '');
+  $( "#heatmap" ).attr('class', '');
+  $( "#toptopic" ).attr('class', '');
+  $( "#sentiments" ).attr('class', 'active');
+  if(status != 3)
+  {
+    $("#buttons").hide();
+    $("#map").hide();
+    $("#topic").hide();
+    $("#sentiment").show();
+    status = 3;
+  }
+});
+
+
+function setHeatmap(filter){
+  if(heatmapfilter != filter)
+  {
+    heatmap.setMap(null);
+    heatmapfilter = filter;
+    getHeatMapPoints(filter);
+  }
+}
+
+function getSentiments(){
+  $.get("../../TwitterStream/sentiment").done(
+    function(data,status){
+    var points = JSON.parse(data);
+    for(var i = 0; i < points.length; i++)
+    {
+      var item = JSON.parse(points[i]);
+      $("#senlist").append( "<li class='list-group-item'><span class='badge'>" + item['type']
+      + "</span>" + item['text'] + "</li>" );
+    }
+  });
+}
+
+function getNewPoints(){
+  $.get(
+    "../../TwitterStream/getnewtweets",
+    {
+      timefrom:dbefore.toUTCString(),
+      timeto:dnow.toUTCString()
+    }).done(function(data,status){
+    var points = JSON.parse(data);
+    for(var i = 0; i < points.length; i++)
+    {
+      newpointlist.push(points[i]);
+    }
+    DrawNewPoints(points);
+  });
+}
+
+function getHeatMapPoints(filter){
+  $.get("../../TwitterStream/gettweetswithfilter",
+  {
+    filter:filter
+  },
+  function(data,status){
+    var points = JSON.parse(data);
+    DrawHeatMapPoints(points)
+  });
+}
+
+function getTopTopics(){
+  $.get("../../TwitterStream/gettoptopics",
+  {
+  },
+  function(data,status){
+    var topics = JSON.parse(data);
+    var words = []
+    for(var i = 0; i < topics.length; i++)
+    {
+      words.push({text:topics[i][0], weight:topics[i][1]*100});
+    }
+    $('#topic').empty();
+    $('#topic').jQCloud(words);
+  });
+}
+
+
+//Fri, 16 Oct 2015 21:28:41 GMT
+
+//weekdays = ['Sun', 'Mon','Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+//months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+//function 
+
+function DrawOldPoints(points)
+{
+  if(status != 0)
+  {
+    return;
+  }
+  len = points.length;
+  for(var i = 0; i < len; i++)
+  {
+    var point = points[i];
+    var marker = new google.maps.Marker({
+      map: map,
+      icon: '../image/point.png',
+      position: {lat: parseFloat(point['latitude']), lng: parseFloat(point['longitude'])}
+    });
+    addInfowindow(marker, point['content']);
+  }
+}
+
+function DrawNewPoints(points)
+{
+  if(status != 0)
+  {
+    return;
+  }
+  for(var i = 0; i < points.length; i++)
+  {
+    point = points[i];
+    var marker = new google.maps.Marker({
+      map: map,
+      icon: '../image/point.png',
+      animation: google.maps.Animation.DROP,
+      position: {lat: parseFloat(point['latitude']), lng: parseFloat(point['longitude'])}
+    });
+    addInfowindow(marker, point['content']);
+  }
+}
+
+function addInfowindow(marker, content)
+{
+  var infowindow = new google.maps.InfoWindow({
+      content: content
+    });
+  marker.addListener('mouseover', function() {
+    infowindow.open(map, marker);
+  });
+  marker.addListener('mouseout', function() {
+    infowindow.close(map, marker);
+  });
+}
+
+function DrawHeatMapPoints(points)
+{
+  var heatmapData = [];
+  for(var i = 0; i < points.length; i++)
+  {
+    point = points[i];
+    heatmapData.push(new google.maps.LatLng(parseFloat(point['latitude']), parseFloat(point['longitude'])));
+  }
+  heatmap = new google.maps.visualization.HeatmapLayer({
+    data: heatmapData,
+    radius:10
+  });
+  heatmap.setMap(map);
+}
+</script>
+    
+  </body>
+</html>
